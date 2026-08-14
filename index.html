@@ -1,0 +1,2303 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Inventory Rebalancing Tool</title>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+
+<style>
+
+:root {
+    --yellow: #FFED00;
+    --black: #111111;
+    --dark: #2B2B2B;
+    --light: #F6F7F9;
+    --border: #E5E7EB;
+    --green: #16A34A;
+    --gray: #6B7280;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: Arial, Helvetica, sans-serif;
+    background: var(--light);
+    color: var(--dark);
+}
+
+.container {
+    width: min(950px, 92%);
+    margin: 40px auto 70px auto;
+}
+
+.hero {
+    background: white;
+    border: 1px solid var(--border);
+    border-left: 10px solid var(--yellow);
+    border-radius: 18px;
+    padding: 30px 32px;
+    box-shadow: 0 5px 18px rgba(0,0,0,0.05);
+    margin-bottom: 25px;
+}
+
+.hero h1 {
+    margin: 0 0 8px 0;
+    font-size: 36px;
+    color: var(--black);
+}
+
+.hero-subtitle {
+    color: var(--gray);
+    font-weight: 600;
+    margin-bottom: 16px;
+}
+
+.hero-text {
+    line-height: 1.65;
+}
+
+.info-box {
+    background: #FFFDEA;
+    border: 1px solid #FDE68A;
+    border-left: 8px solid var(--yellow);
+    border-radius: 14px;
+    padding: 20px 22px;
+    margin-bottom: 28px;
+    line-height: 1.65;
+}
+
+.info-box h2 {
+    margin-top: 0;
+    color: var(--black);
+}
+
+.rule {
+    margin-bottom: 18px;
+}
+
+.rule-title {
+    font-weight: 700;
+    color: var(--black);
+}
+
+.section-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--black);
+    margin: 28px 0 12px 0;
+}
+
+.upload-box {
+    background: white;
+    border: 2px dashed var(--yellow);
+    border-radius: 16px;
+    padding: 35px;
+    text-align: center;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.upload-box:hover {
+    background: #fffef0;
+    transform: translateY(-1px);
+}
+
+.upload-icon {
+    font-size: 42px;
+    margin-bottom: 12px;
+}
+
+.upload-box h3 {
+    margin: 5px 0;
+}
+
+.upload-box p {
+    color: var(--gray);
+}
+
+#pipelineFiles {
+    display: none;
+}
+
+.file-list {
+    margin-top: 15px;
+}
+
+.file-item {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    margin-top: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.file-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.file-ok {
+    color: var(--green);
+    font-weight: 700;
+}
+
+.remove-file {
+    border: none;
+    background: #fee2e2;
+    color: #dc2626;
+    border-radius: 8px;
+    padding: 6px 9px;
+    cursor: pointer;
+    font-weight: 700;
+}
+
+.main-button {
+    width: 100%;
+    margin-top: 18px;
+    min-height: 52px;
+    border: none;
+    border-radius: 12px;
+    background: var(--yellow);
+    color: var(--black);
+    font-weight: 800;
+    font-size: 16px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.main-button:hover {
+    background: #F5E200;
+    transform: translateY(-1px);
+}
+
+.main-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.black-button {
+    display: block;
+    width: 100%;
+    margin-top: 12px;
+    padding: 16px;
+    text-decoration: none;
+    text-align: center;
+    border-radius: 12px;
+    background: var(--black);
+    color: white;
+    font-weight: 800;
+    transition: 0.2s;
+}
+
+.black-button:hover {
+    color: var(--yellow);
+    background: #000;
+}
+
+.processing {
+    display: none;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    margin-top: 20px;
+    padding: 18px;
+    text-align: center;
+}
+
+.spinner {
+    width: 30px;
+    height: 30px;
+    border: 4px solid #eee;
+    border-top-color: var(--yellow);
+    border-radius: 50%;
+    margin: 0 auto 12px auto;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.success-box {
+    display: none;
+    background: #ECFDF3;
+    border: 1px solid #BBF7D0;
+    border-left: 8px solid var(--green);
+    border-radius: 14px;
+    padding: 18px;
+    margin-top: 25px;
+    color: #166534;
+    font-weight: 700;
+}
+
+.error-box {
+    display: none;
+    background: #FEF2F2;
+    border: 1px solid #FECACA;
+    border-left: 8px solid #DC2626;
+    border-radius: 14px;
+    padding: 18px;
+    margin-top: 20px;
+    color: #991B1B;
+}
+
+.metrics {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-top: 20px;
+}
+
+.metrics.two {
+    grid-template-columns: repeat(2, 1fr);
+}
+
+.metric-card {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 22px 16px;
+    text-align: center;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.04);
+}
+
+.metric-label {
+    color: var(--gray);
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+
+.metric-value {
+    font-size: 29px;
+    font-weight: 800;
+    color: var(--black);
+}
+
+.metric-yellow {
+    color: #B89C00;
+}
+
+.metric-green {
+    color: var(--green);
+}
+
+.results {
+    display: none;
+}
+
+.plants-box {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-top: 16px;
+}
+
+hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 30px 0;
+}
+
+@media (max-width: 700px) {
+
+    .hero h1 {
+        font-size: 28px;
+    }
+
+    .metrics,
+    .metrics.two {
+        grid-template-columns: 1fr;
+    }
+
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<div class="hero">
+
+    <h1>📦 Inventory Rebalancing Tool</h1>
+
+    <div class="hero-subtitle">
+        Pipeline Cleaning & Transfer Analysis
+    </div>
+
+    <div class="hero-text">
+        Upload one or multiple Pipeline Excel files from SAP.
+        The tool combines the files, cleans the information,
+        calculates inventory coverage and identifies transfer
+        opportunities across plants.
+    </div>
+
+</div>
+
+<div class="info-box">
+
+    <h2>How it works</h2>
+
+    <div class="rule">
+        <div class="rule-title">1. Upload Pipeline files</div>
+        Upload one or multiple SAP Pipeline files from the plants
+        you want to compare. All files are combined into one analysis.
+    </div>
+
+    <div class="rule">
+        <div class="rule-title">2. Data cleaning</div>
+        The tool keeps only the required fields such as Material,
+        Plant, MRP Controller, Unrestricted Stock, Current Annual Rate,
+        Net Price, Vendor Price Unit and Currency.
+    </div>
+
+    <div class="rule">
+        <div class="rule-title">3. Inventory coverage</div>
+        Inventory Years is calculated as:
+        <br>
+        <b>Unrestricted Stock ÷ Current Annual Rate</b>
+    </div>
+
+    <div class="rule">
+        <div class="rule-title">4. Source plant rule</div>
+        A plant is considered a potential source only when it has
+        <b>more than 5 years of inventory.</b>
+    </div>
+
+    <div class="rule">
+        <div class="rule-title">5. Minimum stock kept at source</div>
+        The source plant must keep at least
+        <b>2 years of inventory</b> after the transfer.
+    </div>
+
+    <div class="rule">
+        <div class="rule-title">6. Target plant rule</div>
+        A receiving plant must have
+        <b>less than 1 year of inventory</b>
+        and a Current Annual Rate of at least
+        <b>100 units.</b>
+    </div>
+
+    <div class="rule">
+        <div class="rule-title">7. Suggested transfer quantity</div>
+        The suggested quantity is the lower value between:
+        <br><br>
+        • Quantity required to bring the target plant to 1 year of inventory.
+        <br>
+        • Quantity available at the source while keeping 2 years of inventory.
+    </div>
+
+    <div class="rule">
+        <div class="rule-title">8. Minimum transfer impact</div>
+        The opportunity is reported only when the suggested quantity
+        covers at least <b>30 days of demand</b> at the receiving plant.
+    </div>
+
+    <div class="rule">
+        <div class="rule-title">9. Priority</div>
+        <b>Critical:</b> 180 days or more
+        <br>
+        <b>High:</b> 90–179 days
+        <br>
+        <b>Medium:</b> 30–89 days
+    </div>
+
+    <div class="rule">
+        <div class="rule-title">10. Price normalization</div>
+        Unit Price is calculated as:
+        <br>
+        <b>Net Price ÷ Vendor Price Unit</b>
+    </div>
+
+    <div class="rule">
+        <div class="rule-title">11. Potential Saving</div>
+        Potential Saving is calculated only when both plants
+        have valid price information and use the same currency.
+        <br><br>
+        <b>
+        (Target Unit Price − Source Unit Price)
+        × Suggested Transfer Qty
+        </b>
+        <br><br>
+        Only positive savings are reported.
+    </div>
+
+    <div class="rule">
+        <div class="rule-title">12. Final output</div>
+        Download the generated Excel file and use the
+        <b>Possible Transfers</b> sheet to update the
+        Google Sheet connected to Looker Studio.
+    </div>
+
+</div>
+
+<div class="section-title">
+    Upload Pipeline Files
+</div>
+
+<label for="pipelineFiles">
+
+    <div class="upload-box">
+
+        <div class="upload-icon">📊</div>
+
+        <h3>Add SAP Pipeline files</h3>
+
+        <p>
+            You can add files one by one or select multiple files at once.
+        </p>
+
+        <strong>
+            Click here to browse
+        </strong>
+
+    </div>
+
+</label>
+
+<input
+    type="file"
+    id="pipelineFiles"
+    accept=".xlsx,.xls"
+    multiple
+>
+
+<div
+    id="fileList"
+    class="file-list">
+</div>
+
+<button
+    id="runButton"
+    class="main-button"
+    disabled>
+
+    Run Inventory Analysis
+
+</button>
+
+<div
+    id="processing"
+    class="processing">
+
+    <div class="spinner"></div>
+
+    Processing Pipeline files...
+
+</div>
+
+<div
+    id="errorBox"
+    class="error-box">
+</div>
+
+<div
+    id="successBox"
+    class="success-box">
+
+    ✅ Analysis completed successfully!
+
+</div>
+
+<div
+    id="results"
+    class="results">
+
+    <div class="metrics">
+
+        <div class="metric-card">
+
+            <div class="metric-label">
+                Files Processed
+            </div>
+
+            <div
+                class="metric-value"
+                id="filesProcessed">
+                0
+            </div>
+
+        </div>
+
+        <div class="metric-card">
+
+            <div class="metric-label">
+                Plants Analyzed
+            </div>
+
+            <div
+                class="metric-value"
+                id="plantsAnalyzed">
+                0
+            </div>
+
+        </div>
+
+        <div class="metric-card">
+
+            <div class="metric-label">
+                Transfer Opportunities
+            </div>
+
+            <div
+                class="metric-value metric-yellow"
+                id="transferOpportunities">
+                0
+            </div>
+
+        </div>
+
+    </div>
+
+    <div
+        id="plantsBox"
+        class="plants-box">
+    </div>
+
+    <div class="metrics two">
+
+        <div class="metric-card">
+
+            <div class="metric-label">
+                Total Transfer QTY
+            </div>
+
+            <div
+                class="metric-value"
+                id="totalTransferQty">
+                0
+            </div>
+
+        </div>
+
+        <div class="metric-card">
+
+            <div class="metric-label">
+                Potential Saving
+            </div>
+
+            <div
+                class="metric-value metric-green"
+                id="potentialSaving">
+                $0.00
+            </div>
+
+        </div>
+
+    </div>
+
+    <hr>
+
+    <div class="section-title">
+        Download Results
+    </div>
+
+    <p>
+        Download the analysis and use the
+        <b>Possible Transfers</b> sheet to update
+        the Google Sheet connected to Looker Studio.
+    </p>
+
+    <button
+        id="downloadButton"
+        class="main-button">
+
+        ⬇ Download Transfer Analysis
+
+    </button>
+
+    <div class="section-title">
+        Dashboard
+    </div>
+
+    <p>
+        Once the Google Sheet has been updated,
+        open the Inventory Rebalancing dashboard.
+    </p>
+
+    <a
+        href="https://datastudio.google.com/reporting/7808257d-0157-4f02-b998-9872c881fcfa"
+        target="_blank"
+        class="black-button">
+
+        📊 Open Looker Studio
+
+    </a>
+
+</div>
+
+</div>
+
+<script>
+
+/* =========================================================
+   ANALYSIS SETTINGS
+========================================================= */
+
+const MIN_FROM_YEARS = 5;
+const KEEP_FROM_YEARS = 2;
+const MAX_TO_YEARS = 1;
+const TARGET_TO_YEARS = 1;
+const MIN_TO_ANNUAL = 100;
+const MIN_DAYS_COVERED = 30;
+
+/* =========================================================
+   REQUIRED COLUMNS
+========================================================= */
+
+const REQUIRED_COLUMNS = [
+
+    "Material",
+    "Material Description",
+    "MRP Controller",
+    "Supplier",
+    "Name 1",
+    "Unrestricted",
+    "Current annual rate",
+    "Plant",
+    "Net Price",
+    "Vendor Price Unit",
+    "Currency"
+
+];
+
+/* =========================================================
+   ELEMENTS
+========================================================= */
+
+const pipelineFiles =
+    document.getElementById("pipelineFiles");
+
+const runButton =
+    document.getElementById("runButton");
+
+const fileList =
+    document.getElementById("fileList");
+
+const processing =
+    document.getElementById("processing");
+
+const errorBox =
+    document.getElementById("errorBox");
+
+const successBox =
+    document.getElementById("successBox");
+
+const resultsContainer =
+    document.getElementById("results");
+
+const downloadButton =
+    document.getElementById("downloadButton");
+
+/* =========================================================
+   DATA
+========================================================= */
+
+let selectedFiles = [];
+
+let cleanedPipeline = [];
+
+let summaryData = [];
+
+let possibleTransfers = [];
+
+/* =========================================================
+   ESCAPE HTML
+========================================================= */
+
+function escapeHtml(value) {
+
+    return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+
+}
+
+/* =========================================================
+   FILE SELECTION
+   ADD FILES WITHOUT REPLACING PREVIOUS ONES
+========================================================= */
+
+pipelineFiles.addEventListener(
+    "change",
+    function () {
+
+        const newFiles =
+            [...this.files];
+
+        newFiles.forEach(
+            file => {
+
+                const alreadyExists =
+                    selectedFiles.some(
+                        existing =>
+                            existing.name
+                                === file.name
+                            &&
+                            existing.size
+                                === file.size
+                    );
+
+                if (
+                    !alreadyExists
+                ) {
+
+                    selectedFiles.push(
+                        file
+                    );
+
+                }
+
+            }
+        );
+
+        renderFileList();
+
+        /*
+        Clear the input so the user can
+        browse again and add another file.
+        */
+        this.value = "";
+
+        successBox.style.display =
+            "none";
+
+        errorBox.style.display =
+            "none";
+
+        resultsContainer.style.display =
+            "none";
+
+        runButton.disabled =
+            selectedFiles.length === 0;
+
+    }
+);
+
+/* =========================================================
+   RENDER FILE LIST
+========================================================= */
+
+function renderFileList() {
+
+    fileList.innerHTML = "";
+
+    if (
+        selectedFiles.length === 0
+    ) {
+
+        runButton.disabled = true;
+        return;
+
+    }
+
+    selectedFiles.forEach(
+        (file, index) => {
+
+            const item =
+                document.createElement(
+                    "div"
+                );
+
+            item.className =
+                "file-item";
+
+            item.innerHTML = `
+                <span>
+                    📄 ${escapeHtml(file.name)}
+                </span>
+
+                <div class="file-right">
+
+                    <span class="file-ok">
+                        Ready ✓
+                    </span>
+
+                    <button
+                        type="button"
+                        class="remove-file"
+                        onclick="removeSelectedFile(${index})">
+                        ✕
+                    </button>
+
+                </div>
+            `;
+
+            fileList.appendChild(
+                item
+            );
+
+        }
+    );
+
+    runButton.disabled = false;
+
+}
+
+/* =========================================================
+   REMOVE FILE
+========================================================= */
+
+function removeSelectedFile(index) {
+
+    selectedFiles.splice(
+        index,
+        1
+    );
+
+    renderFileList();
+
+    successBox.style.display =
+        "none";
+
+    resultsContainer.style.display =
+        "none";
+
+}
+
+/* =========================================================
+   CLEAN TEXT
+========================================================= */
+
+function cleanText(value) {
+
+    if (
+        value === null
+        ||
+        value === undefined
+    ) {
+        return "";
+    }
+
+    return String(value).trim();
+
+}
+
+/* =========================================================
+   CLEAN NUMBER
+========================================================= */
+
+function cleanNumber(value) {
+
+    if (
+        value === null
+        ||
+        value === undefined
+        ||
+        value === ""
+    ) {
+        return 0;
+    }
+
+    if (
+        typeof value === "number"
+    ) {
+
+        return Number.isFinite(value)
+            ? value
+            : 0;
+
+    }
+
+    const cleaned =
+        String(value)
+            .replace(/,/g, "")
+            .trim();
+
+    const number =
+        Number(cleaned);
+
+    return Number.isFinite(number)
+        ? number
+        : 0;
+
+}
+
+/* =========================================================
+   ROUND
+========================================================= */
+
+function roundNumber(
+    value,
+    decimals = 2
+) {
+
+    if (
+        value === null
+        ||
+        value === undefined
+        ||
+        !Number.isFinite(value)
+    ) {
+        return "";
+    }
+
+    const factor =
+        Math.pow(
+            10,
+            decimals
+        );
+
+    return (
+        Math.round(
+            (
+                value
+                +
+                Number.EPSILON
+            )
+            *
+            factor
+        )
+        /
+        factor
+    );
+
+}
+
+/* =========================================================
+   READ EXCEL
+========================================================= */
+
+function readExcelFile(file) {
+
+    return new Promise(
+        (
+            resolve,
+            reject
+        ) => {
+
+            const reader =
+                new FileReader();
+
+            reader.onload =
+                function (event) {
+
+                    try {
+
+                        const data =
+                            new Uint8Array(
+                                event.target.result
+                            );
+
+                        const workbook =
+                            XLSX.read(
+                                data,
+                                {
+                                    type: "array"
+                                }
+                            );
+
+                        const firstSheet =
+                            workbook.Sheets[
+                                workbook.SheetNames[0]
+                            ];
+
+                        const rows =
+                            XLSX.utils.sheet_to_json(
+                                firstSheet,
+                                {
+                                    defval: ""
+                                }
+                            );
+
+                        resolve(
+                            rows
+                        );
+
+                    }
+
+                    catch (error) {
+
+                        reject(
+                            error
+                        );
+
+                    }
+
+                };
+
+            reader.onerror =
+                function () {
+
+                    reject(
+                        new Error(
+                            "Unable to read file."
+                        )
+                    );
+
+                };
+
+            reader.readAsArrayBuffer(
+                file
+            );
+
+        }
+    );
+
+}
+
+/* =========================================================
+   RUN ANALYSIS
+========================================================= */
+
+runButton.addEventListener(
+    "click",
+    async function () {
+
+        try {
+
+            errorBox.style.display =
+                "none";
+
+            successBox.style.display =
+                "none";
+
+            resultsContainer.style.display =
+                "none";
+
+            processing.style.display =
+                "block";
+
+            runButton.disabled =
+                true;
+
+            /*
+            IMPORTANT:
+            Use selectedFiles instead of
+            pipelineFiles.files
+            */
+            const files =
+                [...selectedFiles];
+
+            if (
+                files.length === 0
+            ) {
+
+                throw new Error(
+                    "Please select at least one Pipeline file."
+                );
+
+            }
+
+            let combinedRows = [];
+
+            /* =================================================
+               READ ALL FILES
+            ================================================= */
+
+            for (
+                const file
+                of files
+            ) {
+
+                const rows =
+                    await readExcelFile(
+                        file
+                    );
+
+                if (
+                    rows.length === 0
+                ) {
+
+                    throw new Error(
+                        `${file.name} contains no data.`
+                    );
+
+                }
+
+                /* =============================================
+                   NORMALIZE HEADERS
+                ============================================= */
+
+                const normalizedRows =
+                    rows.map(
+                        row => {
+
+                            const cleanRow = {};
+
+                            Object.keys(row)
+                                .forEach(
+                                    key => {
+
+                                        cleanRow[
+                                            key.trim()
+                                        ] =
+                                            row[key];
+
+                                    }
+                                );
+
+                            return cleanRow;
+
+                        }
+                    );
+
+                const columns =
+                    Object.keys(
+                        normalizedRows[0]
+                    );
+
+                const missing =
+                    REQUIRED_COLUMNS.filter(
+                        column =>
+                            !columns.includes(
+                                column
+                            )
+                    );
+
+                if (
+                    missing.length > 0
+                ) {
+
+                    throw new Error(
+                        `${file.name} is missing required columns: ${missing.join(", ")}`
+                    );
+
+                }
+
+                /* =============================================
+                   KEEP REQUIRED COLUMNS
+                ============================================= */
+
+                normalizedRows.forEach(
+                    row => {
+
+                        const item = {};
+
+                        REQUIRED_COLUMNS.forEach(
+                            column => {
+
+                                item[column] =
+                                    row[column];
+
+                            }
+                        );
+
+                        item["Source File"] =
+                            file.name;
+
+                        combinedRows.push(
+                            item
+                        );
+
+                    }
+                );
+
+            }
+
+            /* =================================================
+               CLEAN DATA
+            ================================================= */
+
+            combinedRows =
+                combinedRows.map(
+                    row => {
+
+                        const unrestricted =
+                            cleanNumber(
+                                row[
+                                    "Unrestricted"
+                                ]
+                            );
+
+                        const annual =
+                            cleanNumber(
+                                row[
+                                    "Current annual rate"
+                                ]
+                            );
+
+                        const netPrice =
+                            cleanNumber(
+                                row[
+                                    "Net Price"
+                                ]
+                            );
+
+                        const vendorPriceUnit =
+                            cleanNumber(
+                                row[
+                                    "Vendor Price Unit"
+                                ]
+                            );
+
+                        const inventoryYears =
+                            annual > 0
+                                ?
+                                unrestricted
+                                /
+                                annual
+                                :
+                                0;
+
+                        const unitPrice =
+                            vendorPriceUnit > 0
+                                ?
+                                netPrice
+                                /
+                                vendorPriceUnit
+                                :
+                                null;
+
+                        return {
+
+                            "Material":
+                                cleanText(
+                                    row[
+                                        "Material"
+                                    ]
+                                ),
+
+                            "Material Description":
+                                cleanText(
+                                    row[
+                                        "Material Description"
+                                    ]
+                                ),
+
+                            "MRP Controller":
+                                cleanText(
+                                    row[
+                                        "MRP Controller"
+                                    ]
+                                ),
+
+                            "Supplier":
+                                cleanText(
+                                    row[
+                                        "Supplier"
+                                    ]
+                                ),
+
+                            "Name 1":
+                                cleanText(
+                                    row[
+                                        "Name 1"
+                                    ]
+                                ),
+
+                            "Unrestricted":
+                                unrestricted,
+
+                            "Current annual rate":
+                                annual,
+
+                            "Plant":
+                                cleanText(
+                                    row[
+                                        "Plant"
+                                    ]
+                                ),
+
+                            "Net Price":
+                                netPrice,
+
+                            "Vendor Price Unit":
+                                vendorPriceUnit,
+
+                            "Unit Price":
+                                unitPrice,
+
+                            "Currency":
+                                cleanText(
+                                    row[
+                                        "Currency"
+                                    ]
+                                ),
+
+                            "Inventory Years":
+                                roundNumber(
+                                    inventoryYears,
+                                    2
+                                ),
+
+                            "Source File":
+                                row[
+                                    "Source File"
+                                ]
+
+                        };
+
+                    }
+                );
+
+            cleanedPipeline =
+                combinedRows;
+
+            /* =================================================
+               SUMMARY
+            ================================================= */
+
+            const summaryMap =
+                new Map();
+
+            combinedRows.forEach(
+                row => {
+
+                    const key =
+                        [
+                            row[
+                                "Material"
+                            ],
+                            row[
+                                "Material Description"
+                            ],
+                            row[
+                                "Plant"
+                            ],
+                            row[
+                                "MRP Controller"
+                            ]
+                        ].join(
+                            "||"
+                        );
+
+                    if (
+                        !summaryMap.has(
+                            key
+                        )
+                    ) {
+
+                        summaryMap.set(
+                            key,
+                            {
+
+                                "Material":
+                                    row[
+                                        "Material"
+                                    ],
+
+                                "Material Description":
+                                    row[
+                                        "Material Description"
+                                    ],
+
+                                "Plant":
+                                    row[
+                                        "Plant"
+                                    ],
+
+                                "MRP Controller":
+                                    row[
+                                        "MRP Controller"
+                                    ],
+
+                                "Unrestricted":
+                                    0,
+
+                                "Current annual rate":
+                                    0,
+
+                                "Net Price":
+                                    row[
+                                        "Net Price"
+                                    ],
+
+                                "Vendor Price Unit":
+                                    row[
+                                        "Vendor Price Unit"
+                                    ],
+
+                                "Unit Price":
+                                    row[
+                                        "Unit Price"
+                                    ],
+
+                                "Currency":
+                                    row[
+                                        "Currency"
+                                    ]
+
+                            }
+                        );
+
+                    }
+
+                    const item =
+                        summaryMap.get(
+                            key
+                        );
+
+                    item[
+                        "Unrestricted"
+                    ] +=
+                        row[
+                            "Unrestricted"
+                        ];
+
+                    item[
+                        "Current annual rate"
+                    ] +=
+                        row[
+                            "Current annual rate"
+                        ];
+
+                }
+            );
+
+            summaryData =
+                Array.from(
+                    summaryMap.values()
+                );
+
+            summaryData.forEach(
+                row => {
+
+                    if (
+                        row[
+                            "Current annual rate"
+                        ] > 0
+                    ) {
+
+                        row[
+                            "Inventory Years"
+                        ] =
+                            row[
+                                "Unrestricted"
+                            ]
+                            /
+                            row[
+                                "Current annual rate"
+                            ];
+
+                    }
+
+                    else {
+
+                        row[
+                            "Inventory Years"
+                        ] =
+                            Infinity;
+
+                    }
+
+                }
+            );
+
+            /* =================================================
+               GROUP MATERIALS
+            ================================================= */
+
+            const materials =
+                new Map();
+
+            summaryData.forEach(
+                row => {
+
+                    const material =
+                        row[
+                            "Material"
+                        ];
+
+                    if (
+                        !materials.has(
+                            material
+                        )
+                    ) {
+
+                        materials.set(
+                            material,
+                            []
+                        );
+
+                    }
+
+                    materials.get(
+                        material
+                    ).push(
+                        row
+                    );
+
+                }
+            );
+
+            possibleTransfers = [];
+
+            /* =================================================
+               TRANSFER ANALYSIS
+            ================================================= */
+
+            materials.forEach(
+                group => {
+
+                    group.forEach(
+                        source => {
+
+                            group.forEach(
+                                target => {
+
+                                    if (
+                                        source[
+                                            "Plant"
+                                        ]
+                                        ===
+                                        target[
+                                            "Plant"
+                                        ]
+                                    ) {
+                                        return;
+                                    }
+
+                                    const fromStock =
+                                        source[
+                                            "Unrestricted"
+                                        ];
+
+                                    const fromAnnual =
+                                        source[
+                                            "Current annual rate"
+                                        ];
+
+                                    const fromYears =
+                                        source[
+                                            "Inventory Years"
+                                        ];
+
+                                    const toStock =
+                                        target[
+                                            "Unrestricted"
+                                        ];
+
+                                    const toAnnual =
+                                        target[
+                                            "Current annual rate"
+                                        ];
+
+                                    const toYears =
+                                        target[
+                                            "Inventory Years"
+                                        ];
+
+                                    /* =========================
+                                       ORIGINAL FILTERS
+                                    ========================= */
+
+                                    const validOpportunity =
+                                        fromStock > 0
+                                        &&
+                                        fromYears >
+                                            MIN_FROM_YEARS
+                                        &&
+                                        toAnnual >=
+                                            MIN_TO_ANNUAL
+                                        &&
+                                        toYears <
+                                            MAX_TO_YEARS;
+
+                                    if (
+                                        !validOpportunity
+                                    ) {
+                                        return;
+                                    }
+
+                                    /* =========================
+                                       TARGET QTY
+                                    ========================= */
+
+                                    const qtyNeeded =
+                                        Math.max(
+                                            (
+                                                toAnnual
+                                                *
+                                                TARGET_TO_YEARS
+                                            )
+                                            -
+                                            toStock,
+                                            0
+                                        );
+
+                                    /* =========================
+                                       KEEP SOURCE QTY
+                                    ========================= */
+
+                                    const keepQty =
+                                        fromAnnual > 0
+                                            ?
+                                            fromAnnual
+                                            *
+                                            KEEP_FROM_YEARS
+                                            :
+                                            0;
+
+                                    const available =
+                                        Math.max(
+                                            fromStock
+                                            -
+                                            keepQty,
+                                            0
+                                        );
+
+                                    /* =========================
+                                       TRANSFER
+                                    ========================= */
+
+                                    const suggestedQty =
+                                        Math.min(
+                                            qtyNeeded,
+                                            available
+                                        );
+
+                                    if (
+                                        suggestedQty <= 0
+                                    ) {
+                                        return;
+                                    }
+
+                                    /* =========================
+                                       DAYS
+                                    ========================= */
+
+                                    const daysCovered =
+                                        (
+                                            suggestedQty
+                                            /
+                                            toAnnual
+                                        )
+                                        *
+                                        365;
+
+                                    if (
+                                        daysCovered
+                                        <
+                                        MIN_DAYS_COVERED
+                                    ) {
+                                        return;
+                                    }
+
+                                    /* =========================
+                                       SCORE
+                                    ========================= */
+
+                                    const score =
+                                        daysCovered
+                                        *
+                                        toAnnual;
+
+                                    /* =========================
+                                       PRIORITY
+                                    ========================= */
+
+                                    let priority =
+                                        "Low";
+
+                                    if (
+                                        daysCovered >= 180
+                                    ) {
+
+                                        priority =
+                                            "Critical";
+
+                                    }
+
+                                    else if (
+                                        daysCovered >= 90
+                                    ) {
+
+                                        priority =
+                                            "High";
+
+                                    }
+
+                                    else if (
+                                        daysCovered >= 30
+                                    ) {
+
+                                        priority =
+                                            "Medium";
+
+                                    }
+
+                                    /* =========================
+                                       PRICE
+                                    ========================= */
+
+                                    const fromUnitPrice =
+                                        source[
+                                            "Unit Price"
+                                        ];
+
+                                    const toUnitPrice =
+                                        target[
+                                            "Unit Price"
+                                        ];
+
+                                    const fromCurrency =
+                                        source[
+                                            "Currency"
+                                        ];
+
+                                    const toCurrency =
+                                        target[
+                                            "Currency"
+                                        ];
+
+                                    const validPrice =
+                                        fromUnitPrice !== null
+                                        &&
+                                        toUnitPrice !== null
+                                        &&
+                                        Number.isFinite(
+                                            fromUnitPrice
+                                        )
+                                        &&
+                                        Number.isFinite(
+                                            toUnitPrice
+                                        )
+                                        &&
+                                        fromCurrency
+                                        ===
+                                        toCurrency
+                                        &&
+                                        fromCurrency !== "";
+
+                                    let priceDifference =
+                                        null;
+
+                                    let potentialSaving =
+                                        0;
+
+                                    if (
+                                        validPrice
+                                    ) {
+
+                                        priceDifference =
+                                            toUnitPrice
+                                            -
+                                            fromUnitPrice;
+
+                                        potentialSaving =
+                                            Math.max(
+                                                priceDifference
+                                                *
+                                                suggestedQty,
+                                                0
+                                            );
+
+                                    }
+
+                                    /* =========================
+                                       LOG
+                                    ========================= */
+
+                                    possibleTransfers.push(
+                                        {
+
+                                            "Material":
+                                                source[
+                                                    "Material"
+                                                ],
+
+                                            "Description":
+                                                source[
+                                                    "Material Description"
+                                                ],
+
+                                            "From Plant":
+                                                source[
+                                                    "Plant"
+                                                ],
+
+                                            "From MRP Controller":
+                                                source[
+                                                    "MRP Controller"
+                                                ],
+
+                                            "To Plant":
+                                                target[
+                                                    "Plant"
+                                                ],
+
+                                            "To MRP Controller":
+                                                target[
+                                                    "MRP Controller"
+                                                ],
+
+                                            "From Stock":
+                                                roundNumber(
+                                                    fromStock,
+                                                    2
+                                                ),
+
+                                            "To Stock":
+                                                roundNumber(
+                                                    toStock,
+                                                    2
+                                                ),
+
+                                            "From Annual":
+                                                roundNumber(
+                                                    fromAnnual,
+                                                    2
+                                                ),
+
+                                            "To Annual":
+                                                roundNumber(
+                                                    toAnnual,
+                                                    2
+                                                ),
+
+                                            "From Inventory Years":
+                                                roundNumber(
+                                                    fromYears,
+                                                    2
+                                                ),
+
+                                            "To Inventory Years":
+                                                roundNumber(
+                                                    toYears,
+                                                    2
+                                                ),
+
+                                            "Qty Needed To Reach 1 Year":
+                                                roundNumber(
+                                                    qtyNeeded,
+                                                    2
+                                                ),
+
+                                            "Qty Available Keeping 2 Years In Source":
+                                                roundNumber(
+                                                    available,
+                                                    2
+                                                ),
+
+                                            "Suggested Transfer Qty":
+                                                roundNumber(
+                                                    suggestedQty,
+                                                    2
+                                                ),
+
+                                            "Days Covered In To Plant":
+                                                roundNumber(
+                                                    daysCovered,
+                                                    1
+                                                ),
+
+                                            "From Price":
+                                                roundNumber(
+                                                    source[
+                                                        "Net Price"
+                                                    ],
+                                                    4
+                                                ),
+
+                                            "From Price Per":
+                                                roundNumber(
+                                                    source[
+                                                        "Vendor Price Unit"
+                                                    ],
+                                                    2
+                                                ),
+
+                                            "From Unit Price":
+                                                fromUnitPrice !== null
+                                                    ?
+                                                    roundNumber(
+                                                        fromUnitPrice,
+                                                        4
+                                                    )
+                                                    :
+                                                    "",
+
+                                            "From Currency":
+                                                fromCurrency,
+
+                                            "To Price":
+                                                roundNumber(
+                                                    target[
+                                                        "Net Price"
+                                                    ],
+                                                    4
+                                                ),
+
+                                            "To Price Per":
+                                                roundNumber(
+                                                    target[
+                                                        "Vendor Price Unit"
+                                                    ],
+                                                    2
+                                                ),
+
+                                            "To Unit Price":
+                                                toUnitPrice !== null
+                                                    ?
+                                                    roundNumber(
+                                                        toUnitPrice,
+                                                        4
+                                                    )
+                                                    :
+                                                    "",
+
+                                            "To Currency":
+                                                toCurrency,
+
+                                            "Unit Price Difference":
+                                                priceDifference !== null
+                                                    ?
+                                                    roundNumber(
+                                                        priceDifference,
+                                                        4
+                                                    )
+                                                    :
+                                                    "",
+
+                                            "Potential Saving":
+                                                roundNumber(
+                                                    potentialSaving,
+                                                    2
+                                                ),
+
+                                            "Priority":
+                                                priority,
+
+                                            "Score":
+                                                roundNumber(
+                                                    score,
+                                                    2
+                                                ),
+
+                                            "Recommendation":
+                                                `Review transfer from ${source["Plant"]} to ${target["Plant"]}`,
+
+                                            "Reason":
+                                                "Transfer covers at least 30 days of demand and may help avoid a new PO"
+
+                                        }
+                                    );
+
+                                }
+                            );
+
+                        }
+                    );
+
+                }
+            );
+
+            /* =================================================
+               SORT
+            ================================================= */
+
+            const priorityOrder = {
+                "Critical": 1,
+                "High": 2,
+                "Medium": 3,
+                "Low": 4
+            };
+
+            possibleTransfers.sort(
+                (a, b) => {
+
+                    const priorityCompare =
+                        priorityOrder[
+                            a[
+                                "Priority"
+                            ]
+                        ]
+                        -
+                        priorityOrder[
+                            b[
+                                "Priority"
+                            ]
+                        ];
+
+                    if (
+                        priorityCompare !== 0
+                    ) {
+                        return priorityCompare;
+                    }
+
+                    const daysCompare =
+                        b[
+                            "Days Covered In To Plant"
+                        ]
+                        -
+                        a[
+                            "Days Covered In To Plant"
+                        ];
+
+                    if (
+                        daysCompare !== 0
+                    ) {
+                        return daysCompare;
+                    }
+
+                    return (
+                        b[
+                            "To Annual"
+                        ]
+                        -
+                        a[
+                            "To Annual"
+                        ]
+                    );
+
+                }
+            );
+
+            /* =================================================
+               METRICS
+            ================================================= */
+
+            const plants =
+                [
+                    ...new Set(
+                        combinedRows
+                            .map(
+                                row =>
+                                    row[
+                                        "Plant"
+                                    ]
+                            )
+                            .filter(Boolean)
+                    )
+                ].sort();
+
+            const totalTransferQty =
+                possibleTransfers.reduce(
+                    (
+                        sum,
+                        item
+                    ) =>
+                        sum
+                        +
+                        cleanNumber(
+                            item[
+                                "Suggested Transfer Qty"
+                            ]
+                        ),
+                    0
+                );
+
+            const totalSaving =
+                possibleTransfers.reduce(
+                    (
+                        sum,
+                        item
+                    ) =>
+                        sum
+                        +
+                        cleanNumber(
+                            item[
+                                "Potential Saving"
+                            ]
+                        ),
+                    0
+                );
+
+            document.getElementById(
+                "filesProcessed"
+            ).textContent =
+                files.length;
+
+            document.getElementById(
+                "plantsAnalyzed"
+            ).textContent =
+                plants.length;
+
+            document.getElementById(
+                "transferOpportunities"
+            ).textContent =
+                possibleTransfers.length;
+
+            document.getElementById(
+                "totalTransferQty"
+            ).textContent =
+                totalTransferQty.toLocaleString(
+                    "en-US",
+                    {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    }
+                );
+
+            document.getElementById(
+                "potentialSaving"
+            ).textContent =
+                "$"
+                +
+                totalSaving.toLocaleString(
+                    "en-US",
+                    {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    }
+                );
+
+            document.getElementById(
+                "plantsBox"
+            ).innerHTML =
+                `<b>Plants analyzed:</b> ${
+                    plants
+                        .map(
+                            escapeHtml
+                        )
+                        .join(", ")
+                }`;
+
+            processing.style.display =
+                "none";
+
+            successBox.style.display =
+                "block";
+
+            resultsContainer.style.display =
+                "block";
+
+            runButton.disabled =
+                false;
+
+        }
+
+        catch (error) {
+
+            console.error(
+                error
+            );
+
+            processing.style.display =
+                "none";
+
+            runButton.disabled =
+                false;
+
+            errorBox.textContent =
+                error.message
+                ||
+                "An error occurred while processing the files.";
+
+            errorBox.style.display =
+                "block";
+
+        }
+
+    }
+);
+
+/* =========================================================
+   DOWNLOAD EXCEL
+========================================================= */
+
+downloadButton.addEventListener(
+    "click",
+    function () {
+
+        if (
+            cleanedPipeline.length === 0
+        ) {
+
+            alert(
+                "Run the analysis first."
+            );
+
+            return;
+
+        }
+
+        const cleanedSheet =
+            XLSX.utils.json_to_sheet(
+                cleanedPipeline
+            );
+
+        const summaryExport =
+            summaryData.map(
+                row => {
+
+                    return {
+
+                        ...row,
+
+                        "Inventory Years":
+                            row[
+                                "Inventory Years"
+                            ] === Infinity
+                                ?
+                                "No Consumption"
+                                :
+                                roundNumber(
+                                    row[
+                                        "Inventory Years"
+                                    ],
+                                    2
+                                ),
+
+                        "Unit Price":
+                            row[
+                                "Unit Price"
+                            ] === null
+                                ?
+                                ""
+                                :
+                                roundNumber(
+                                    row[
+                                        "Unit Price"
+                                    ],
+                                    4
+                                )
+
+                    };
+
+                }
+            );
+
+        const summarySheet =
+            XLSX.utils.json_to_sheet(
+                summaryExport
+            );
+
+        const transfersSheet =
+            XLSX.utils.json_to_sheet(
+                possibleTransfers
+            );
+
+        const workbook =
+            XLSX.utils.book_new();
+
+        XLSX.utils.book_append_sheet(
+            workbook,
+            cleanedSheet,
+            "Cleaned Pipeline"
+        );
+
+        XLSX.utils.book_append_sheet(
+            workbook,
+            summarySheet,
+            "Summary"
+        );
+
+        XLSX.utils.book_append_sheet(
+            workbook,
+            transfersSheet,
+            "Possible Transfers"
+        );
+
+        XLSX.writeFile(
+            workbook,
+            "Possible_Transfers_Analysis.xlsx"
+        );
+
+    }
+);
+
+</script>
+
+</body>
+</html>
