@@ -424,8 +424,8 @@ hr {
         <br>
         <b>Net Price ÷ Vendor Price Unit</b>
         <br><br>
-        If Vendor Price Unit is 0 or blank, the tool uses <b>1</b>.
-        If Net Price is 0 or blank, the price is treated as unavailable.
+        If Vendor Price Unit is 0 or blank, the price is treated as <b>unavailable</b>.
+        If Net Price is 0 or blank, the price is also treated as unavailable.
     </div>
 
     <div class="rule">
@@ -1296,21 +1296,18 @@ runButton.addEventListener(
                         /*
                            PRICE RULE:
                            - Net Price 0/blank = unavailable
-                           - Vendor Price Unit 0/blank = assume 1
-                           - Otherwise divide Net Price by Price Unit
+                           - Vendor Price Unit 0/blank = unavailable
+                           - Only calculate Unit Price when BOTH values are valid
                         */
-                        const effectivePriceUnit =
-                            vendorPriceUnit !== null
-                            &&
-                            vendorPriceUnit > 0
-                                ? vendorPriceUnit
-                                : 1;
-
                         const unitPrice =
                             netPrice !== null
                             &&
                             netPrice > 0
-                                ? netPrice / effectivePriceUnit
+                            &&
+                            vendorPriceUnit !== null
+                            &&
+                            vendorPriceUnit > 0
+                                ? netPrice / vendorPriceUnit
                                 : null;
 
                         return {
