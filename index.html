@@ -362,9 +362,9 @@ hr {
 
     <div class="rule">
         <div class="rule-title">2. Data cleaning</div>
-        The tool keeps only the required fields such as Material,
-        Plant, MRP Controller, Unrestricted Stock, Current Annual Rate,
-        Net Price, Vendor Price Unit and Currency.
+        The tool keeps only the fields required for the transfer analysis:
+        Material, Description, Plant, MRP Controller, Unrestricted Stock,
+        Current Annual Rate, Net Price, Vendor Price Unit and Currency.
     </div>
 
     <div class="rule">
@@ -423,6 +423,9 @@ hr {
         Unit Price is calculated as:
         <br>
         <b>Net Price ÷ Vendor Price Unit</b>
+        <br><br>
+        If Vendor Price Unit is 0 or blank, the tool uses <b>1</b>.
+        If Net Price is 0 or blank, the price is treated as unavailable.
     </div>
 
     <div class="rule">
@@ -442,7 +445,8 @@ hr {
         <div class="rule-title">12. Final output</div>
         Download the generated Excel file and use the
         <b>Possible Transfers</b> sheet to update the
-        Google Sheet connected to Looker Studio.
+        Google Sheet connected to Looker Studio. The sheet is exported
+        in the same column order as the Looker base table.
     </div>
 
 </div>
@@ -666,8 +670,6 @@ const REQUIRED_COLUMNS = [
     "Material",
     "Material Description",
     "MRP Controller",
-    "Supplier",
-    "Name 1",
     "Unrestricted",
     "Current annual rate",
     "Plant",
@@ -929,6 +931,48 @@ function cleanNumber(value) {
     return Number.isFinite(number)
         ? number
         : 0;
+
+}
+
+/* =========================================================
+   CLEAN OPTIONAL NUMBER
+   Used for prices so blanks are not converted to zero.
+========================================================= */
+
+function cleanOptionalNumber(value) {
+
+    if (
+        value === null
+        ||
+        value === undefined
+        ||
+        value === ""
+    ) {
+        return null;
+    }
+
+    if (
+        typeof value === "number"
+    ) {
+        return Number.isFinite(value)
+            ? value
+            : null;
+    }
+
+    const cleaned =
+        String(value)
+            .replace(/,/g, "")
+            .trim();
+
+    if (cleaned === "") {
+        return null;
+    }
+
+    const number = Number(cleaned);
+
+    return Number.isFinite(number)
+        ? number
+        : null;
 
 }
 
@@ -1227,14 +1271,14 @@ runButton.addEventListener(
                             );
 
                         const netPrice =
-                            cleanNumber(
+                            cleanOptionalNumber(
                                 row[
                                     "Net Price"
                                 ]
                             );
 
                         const vendorPriceUnit =
-                            cleanNumber(
+                            cleanOptionalNumber(
                                 row[
                                     "Vendor Price Unit"
                                 ]
@@ -1249,14 +1293,25 @@ runButton.addEventListener(
                                 :
                                 0;
 
-                        const unitPrice =
+                        /*
+                           PRICE RULE:
+                           - Net Price 0/blank = unavailable
+                           - Vendor Price Unit 0/blank = assume 1
+                           - Otherwise divide Net Price by Price Unit
+                        */
+                        const effectivePriceUnit =
+                            vendorPriceUnit !== null
+                            &&
                             vendorPriceUnit > 0
-                                ?
-                                netPrice
-                                /
-                                vendorPriceUnit
-                                :
-                                null;
+                                ? vendorPriceUnit
+                                : 1;
+
+                        const unitPrice =
+                            netPrice !== null
+                            &&
+                            netPrice > 0
+                                ? netPrice / effectivePriceUnit
+                                : null;
 
                         return {
 
@@ -1278,20 +1333,6 @@ runButton.addEventListener(
                                 cleanText(
                                     row[
                                         "MRP Controller"
-                                    ]
-                                ),
-
-                            "Supplier":
-                                cleanText(
-                                    row[
-                                        "Supplier"
-                                    ]
-                                ),
-
-                            "Name 1":
-                                cleanText(
-                                    row[
-                                        "Name 1"
                                     ]
                                 ),
 
@@ -1801,6 +1842,12 @@ runButton.addEventListener(
                                     possibleTransfers.push(
                                         {
 
+                                            /* LOOKER-READY OUTPUT */
+                                            "Buyer":
+                                                source[
+                                                    "MRP Controller"
+                                                ],
+
                                             "Material":
                                                 source[
                                                     "Material"
@@ -1816,19 +1863,9 @@ runButton.addEventListener(
                                                     "Plant"
                                                 ],
 
-                                            "From MRP Controller":
-                                                source[
-                                                    "MRP Controller"
-                                                ],
-
                                             "To Plant":
                                                 target[
                                                     "Plant"
-                                                ],
-
-                                            "To MRP Controller":
-                                                target[
-                                                    "MRP Controller"
                                                 ],
 
                                             "From Stock":
@@ -1855,59 +1892,17 @@ runButton.addEventListener(
                                                     2
                                                 ),
 
-                                            "From Inventory Years":
-                                                roundNumber(
-                                                    fromYears,
-                                                    2
-                                                ),
-
-                                            "To Inventory Years":
-                                                roundNumber(
-                                                    toYears,
-                                                    2
-                                                ),
-
-                                            "Qty Needed To Reach 1 Year":
-                                                roundNumber(
-                                                    qtyNeeded,
-                                                    2
-                                                ),
-
-                                            "Qty Available Keeping 2 Years In Source":
-                                                roundNumber(
-                                                    available,
-                                                    2
-                                                ),
-
                                             "Suggested Transfer Qty":
                                                 roundNumber(
                                                     suggestedQty,
                                                     2
                                                 ),
 
-                                            "Days Covered In To Plant":
-                                                roundNumber(
-                                                    daysCovered,
-                                                    1
-                                                ),
+                                            "Priority":
+                                                priority,
 
-                                            "From Price":
-                                                roundNumber(
-                                                    source[
-                                                        "Net Price"
-                                                    ],
-                                                    4
-                                                ),
-
-                                            "From Price Per":
-                                                roundNumber(
-                                                    source[
-                                                        "Vendor Price Unit"
-                                                    ],
-                                                    2
-                                                ),
-
-                                            "From Unit Price":
+                                            /* Price shown in Looker = SOURCE unit price */
+                                            "Price":
                                                 fromUnitPrice !== null
                                                     ?
                                                     roundNumber(
@@ -1917,60 +1912,9 @@ runButton.addEventListener(
                                                     :
                                                     "",
 
-                                            "From Currency":
-                                                fromCurrency,
-
-                                            "To Price":
-                                                roundNumber(
-                                                    target[
-                                                        "Net Price"
-                                                    ],
-                                                    4
-                                                ),
-
-                                            "To Price Per":
-                                                roundNumber(
-                                                    target[
-                                                        "Vendor Price Unit"
-                                                    ],
-                                                    2
-                                                ),
-
-                                            "To Unit Price":
-                                                toUnitPrice !== null
-                                                    ?
-                                                    roundNumber(
-                                                        toUnitPrice,
-                                                        4
-                                                    )
-                                                    :
-                                                    "",
-
-                                            "To Currency":
-                                                toCurrency,
-
-                                            "Unit Price Difference":
-                                                priceDifference !== null
-                                                    ?
-                                                    roundNumber(
-                                                        priceDifference,
-                                                        4
-                                                    )
-                                                    :
-                                                    "",
-
-                                            "Potential Saving":
+                                            "Saving":
                                                 roundNumber(
                                                     potentialSaving,
-                                                    2
-                                                ),
-
-                                            "Priority":
-                                                priority,
-
-                                            "Score":
-                                                roundNumber(
-                                                    score,
                                                     2
                                                 ),
 
@@ -2025,19 +1969,23 @@ runButton.addEventListener(
                         return priorityCompare;
                     }
 
-                    const daysCompare =
-                        b[
-                            "Days Covered In To Plant"
-                        ]
+                    const savingCompare =
+                        cleanNumber(
+                            b[
+                                "Saving"
+                            ]
+                        )
                         -
-                        a[
-                            "Days Covered In To Plant"
-                        ];
+                        cleanNumber(
+                            a[
+                                "Saving"
+                            ]
+                        );
 
                     if (
-                        daysCompare !== 0
+                        savingCompare !== 0
                     ) {
-                        return daysCompare;
+                        return savingCompare;
                     }
 
                     return (
@@ -2097,7 +2045,7 @@ runButton.addEventListener(
                         +
                         cleanNumber(
                             item[
-                                "Potential Saving"
+                                "Saving"
                             ]
                         ),
                     0
@@ -2263,14 +2211,86 @@ downloadButton.addEventListener(
                 summaryExport
             );
 
+        const lookerHeaders = [
+            "Buyer",
+            "Material",
+            "Description",
+            "From Plant",
+            "To Plant",
+            "From Stock",
+            "To Stock",
+            "From Annual",
+            "To Annual",
+            "Suggested Transfer Qty",
+            "Priority",
+            "Price",
+            "Saving",
+            "Recommendation",
+            "Reason"
+        ];
+
         const transfersSheet =
             XLSX.utils.json_to_sheet(
-                possibleTransfers
+                possibleTransfers,
+                {
+                    header: lookerHeaders
+                }
             );
+
+        /* Make the Excel easier to copy/paste into Google Sheets */
+        transfersSheet["!cols"] = [
+            { wch: 10 },  // Buyer
+            { wch: 16 },  // Material
+            { wch: 34 },  // Description
+            { wch: 12 },  // From Plant
+            { wch: 12 },  // To Plant
+            { wch: 12 },  // From Stock
+            { wch: 12 },  // To Stock
+            { wch: 12 },  // From Annual
+            { wch: 12 },  // To Annual
+            { wch: 22 },  // Suggested Transfer Qty
+            { wch: 12 },  // Priority
+            { wch: 12 },  // Price
+            { wch: 14 },  // Saving
+            { wch: 36 },  // Recommendation
+            { wch: 70 }   // Reason
+        ];
+
+        if (transfersSheet["!ref"]) {
+            transfersSheet["!autofilter"] = {
+                ref: transfersSheet["!ref"]
+            };
+        }
+
+        /* Numeric display formats for Price and Saving */
+        for (
+            let rowNumber = 2;
+            rowNumber <= possibleTransfers.length + 1;
+            rowNumber++
+        ) {
+            const priceCell = transfersSheet[`L${rowNumber}`];
+            const savingCell = transfersSheet[`M${rowNumber}`];
+
+            if (priceCell && typeof priceCell.v === "number") {
+                priceCell.z = '$0.####';
+            }
+
+            if (savingCell && typeof savingCell.v === "number") {
+                savingCell.z = '$#,##0.00';
+            }
+        }
 
         const workbook =
             XLSX.utils.book_new();
 
+        /* Put the Looker-ready sheet FIRST so the file opens there */
+        XLSX.utils.book_append_sheet(
+            workbook,
+            transfersSheet,
+            "Possible Transfers"
+        );
+
+        /* Keep these as backup/technical tabs */
         XLSX.utils.book_append_sheet(
             workbook,
             cleanedSheet,
@@ -2281,12 +2301,6 @@ downloadButton.addEventListener(
             workbook,
             summarySheet,
             "Summary"
-        );
-
-        XLSX.utils.book_append_sheet(
-            workbook,
-            transfersSheet,
-            "Possible Transfers"
         );
 
         XLSX.writeFile(
