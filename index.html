@@ -362,28 +362,36 @@ hr {
 
     <div class="rule">
         <div class="rule-title">2. Data cleaning</div>
-        The tool keeps only the fields required for the transfer analysis:
-        Material, Description, Plant, MRP Controller, Unrestricted Stock,
-        Current Annual Rate, Net Price, Vendor Price Unit and Currency.
+        The tool keeps the fields required for the transfer analysis and calculates
+        <b>Real Unrestricted</b> as:
+        <br><br>
+        <b>Unrestricted − (Pck.Req Qnty + Mf.Al Qnty)</b>
+        <br><br>
+        Negative results are treated as 0.
     </div>
 
     <div class="rule">
         <div class="rule-title">3. Inventory coverage</div>
         Inventory Years is calculated as:
         <br>
-        <b>Unrestricted Stock ÷ Current Annual Rate</b>
+        <b>Real Unrestricted ÷ Current Annual Rate</b>
     </div>
 
     <div class="rule">
         <div class="rule-title">4. Source plant rule</div>
-        A plant is considered a potential source only when it has
-        <b>more than 5 years of inventory.</b>
+        A plant is considered a potential source when it has inventory available
+        for transfer <b>after protecting the required source reserve.</b>
     </div>
 
     <div class="rule">
         <div class="rule-title">5. Minimum stock kept at source</div>
-        The source plant must keep at least
-        <b>2 years of inventory</b> after the transfer.
+        The source plant must keep the greater value between:
+        <br><br>
+        • <b>3 years of demand</b>
+        <br>
+        • <b>Reorder Point × 1.5</b>
+        <br><br>
+        The tool uses the higher of these two values as the minimum source reserve.
     </div>
 
     <div class="rule">
@@ -443,10 +451,10 @@ hr {
 
     <div class="rule">
         <div class="rule-title">12. Final output</div>
-        Download the generated Excel file and use the
-        <b>Possible Transfers</b> sheet to update the
-        Google Sheet connected to Looker Studio. The sheet is exported
-        in the same column order as the Looker base table.
+        Download the generated Excel file. It contains only the
+        <b>Possible Transfers</b> sheet, ready to copy and paste into the
+        Google Sheet connected to Looker Studio. The column order stays
+        exactly the same as the Looker base table.
     </div>
 
 </div>
@@ -613,8 +621,8 @@ hr {
     </div>
 
     <p>
-        Download the analysis and use the
-        <b>Possible Transfers</b> sheet to update
+        Download the analysis. The Excel file contains only the
+        <b>Possible Transfers</b> sheet, ready to copy and paste into
         the Google Sheet connected to Looker Studio.
     </p>
 
@@ -654,8 +662,8 @@ hr {
    ANALYSIS SETTINGS
 ========================================================= */
 
-const MIN_FROM_YEARS = 5;
-const KEEP_FROM_YEARS = 2;
+const KEEP_FROM_YEARS = 3;
+const REORDER_POINT_MULTIPLIER = 1.5;
 const MAX_TO_YEARS = 1;
 const TARGET_TO_YEARS = 1;
 const MIN_TO_ANNUAL = 100;
@@ -671,6 +679,9 @@ const REQUIRED_COLUMNS = [
     "Material Description",
     "MRP Controller",
     "Unrestricted",
+    "Pck.Req Qnty",
+    "Mf.Al Qnty",
+    "Reorder Point",
     "Current annual rate",
     "Plant",
     "Net Price",
@@ -1263,6 +1274,39 @@ runButton.addEventListener(
                                 ]
                             );
 
+                        const pickRequirement =
+                            cleanNumber(
+                                row[
+                                    "Pck.Req Qnty"
+                                ]
+                            );
+
+                        const manufacturedAllocation =
+                            cleanNumber(
+                                row[
+                                    "Mf.Al Qnty"
+                                ]
+                            );
+
+                        const reorderPoint =
+                            cleanNumber(
+                                row[
+                                    "Reorder Point"
+                                ]
+                            );
+
+                        const realUnrestricted =
+                            Math.max(
+                                unrestricted
+                                -
+                                (
+                                    pickRequirement
+                                    +
+                                    manufacturedAllocation
+                                ),
+                                0
+                            );
+
                         const annual =
                             cleanNumber(
                                 row[
@@ -1287,7 +1331,7 @@ runButton.addEventListener(
                         const inventoryYears =
                             annual > 0
                                 ?
-                                unrestricted
+                                realUnrestricted
                                 /
                                 annual
                                 :
@@ -1335,6 +1379,18 @@ runButton.addEventListener(
 
                             "Unrestricted":
                                 unrestricted,
+
+                            "Pck.Req Qnty":
+                                pickRequirement,
+
+                            "Mf.Al Qnty":
+                                manufacturedAllocation,
+
+                            "Real Unrestricted":
+                                realUnrestricted,
+
+                            "Reorder Point":
+                                reorderPoint,
 
                             "Current annual rate":
                                 annual,
@@ -1442,6 +1498,18 @@ runButton.addEventListener(
                                 "Unrestricted":
                                     0,
 
+                                "Pck.Req Qnty":
+                                    0,
+
+                                "Mf.Al Qnty":
+                                    0,
+
+                                "Real Unrestricted":
+                                    0,
+
+                                "Reorder Point":
+                                    0,
+
                                 "Current annual rate":
                                     0,
 
@@ -1483,6 +1551,39 @@ runButton.addEventListener(
                         ];
 
                     item[
+                        "Pck.Req Qnty"
+                    ] +=
+                        row[
+                            "Pck.Req Qnty"
+                        ];
+
+                    item[
+                        "Mf.Al Qnty"
+                    ] +=
+                        row[
+                            "Mf.Al Qnty"
+                        ];
+
+                    item[
+                        "Real Unrestricted"
+                    ] +=
+                        row[
+                            "Real Unrestricted"
+                        ];
+
+                    item[
+                        "Reorder Point"
+                    ] =
+                        Math.max(
+                            item[
+                                "Reorder Point"
+                            ],
+                            row[
+                                "Reorder Point"
+                            ]
+                        );
+
+                    item[
                         "Current annual rate"
                     ] +=
                         row[
@@ -1510,7 +1611,7 @@ runButton.addEventListener(
                             "Inventory Years"
                         ] =
                             row[
-                                "Unrestricted"
+                                "Real Unrestricted"
                             ]
                             /
                             row[
@@ -1597,7 +1698,7 @@ runButton.addEventListener(
 
                                     const fromStock =
                                         source[
-                                            "Unrestricted"
+                                            "Real Unrestricted"
                                         ];
 
                                     const fromAnnual =
@@ -1605,14 +1706,9 @@ runButton.addEventListener(
                                             "Current annual rate"
                                         ];
 
-                                    const fromYears =
-                                        source[
-                                            "Inventory Years"
-                                        ];
-
                                     const toStock =
                                         target[
-                                            "Unrestricted"
+                                            "Real Unrestricted"
                                         ];
 
                                     const toAnnual =
@@ -1631,9 +1727,6 @@ runButton.addEventListener(
 
                                     const validOpportunity =
                                         fromStock > 0
-                                        &&
-                                        fromYears >
-                                            MIN_FROM_YEARS
                                         &&
                                         toAnnual >=
                                             MIN_TO_ANNUAL
@@ -1667,7 +1760,7 @@ runButton.addEventListener(
                                        KEEP SOURCE QTY
                                     ========================= */
 
-                                    const keepQty =
+                                    const threeYearReserve =
                                         fromAnnual > 0
                                             ?
                                             fromAnnual
@@ -1675,6 +1768,21 @@ runButton.addEventListener(
                                             KEEP_FROM_YEARS
                                             :
                                             0;
+
+                                    const reorderPointReserve =
+                                        cleanNumber(
+                                            source[
+                                                "Reorder Point"
+                                            ]
+                                        )
+                                        *
+                                        REORDER_POINT_MULTIPLIER;
+
+                                    const keepQty =
+                                        Math.max(
+                                            threeYearReserve,
+                                            reorderPointReserve
+                                        );
 
                                     const available =
                                         Math.max(
@@ -1919,7 +2027,7 @@ runButton.addEventListener(
                                                 `Review transfer from ${source["Plant"]} to ${target["Plant"]}`,
 
                                             "Reason":
-                                                "Transfer covers at least 30 days of demand and may help avoid a new PO"
+                                                "Transfer covers at least 30 days of demand while protecting source reserve"
 
                                         }
                                     );
@@ -2138,7 +2246,8 @@ runButton.addEventListener(
 );
 
 /* =========================================================
-   DOWNLOAD EXCEL
+   DOWNLOAD EXCEL - LOOKER READY
+   Only ONE sheet is exported: Possible Transfers
 ========================================================= */
 
 downloadButton.addEventListener(
@@ -2156,57 +2265,6 @@ downloadButton.addEventListener(
             return;
 
         }
-
-        const cleanedSheet =
-            XLSX.utils.json_to_sheet(
-                cleanedPipeline
-            );
-
-        const summaryExport =
-            summaryData.map(
-                row => {
-
-                    return {
-
-                        ...row,
-
-                        "Inventory Years":
-                            row[
-                                "Inventory Years"
-                            ] === Infinity
-                                ?
-                                "No Consumption"
-                                :
-                                roundNumber(
-                                    row[
-                                        "Inventory Years"
-                                    ],
-                                    2
-                                ),
-
-                        "Unit Price":
-                            row[
-                                "Unit Price"
-                            ] === null
-                                ?
-                                ""
-                                :
-                                roundNumber(
-                                    row[
-                                        "Unit Price"
-                                    ],
-                                    4
-                                )
-
-                    };
-
-                }
-            );
-
-        const summarySheet =
-            XLSX.utils.json_to_sheet(
-                summaryExport
-            );
 
         const lookerHeaders = [
             "Buyer",
@@ -2226,6 +2284,11 @@ downloadButton.addEventListener(
             "Reason"
         ];
 
+        /*
+           Export ONLY the operational log used for Google Sheets / Looker.
+           Column order must NEVER change because the Google Sheet connected
+           to Looker Studio uses this exact structure.
+        */
         const transfersSheet =
             XLSX.utils.json_to_sheet(
                 possibleTransfers,
@@ -2234,70 +2297,114 @@ downloadButton.addEventListener(
                 }
             );
 
-        /* Make the Excel easier to copy/paste into Google Sheets */
+        /* ---------------------------------------------------------
+           READABLE COLUMN WIDTHS
+        --------------------------------------------------------- */
         transfersSheet["!cols"] = [
             { wch: 10 },  // Buyer
             { wch: 16 },  // Material
-            { wch: 34 },  // Description
+            { wch: 36 },  // Description
             { wch: 12 },  // From Plant
             { wch: 12 },  // To Plant
-            { wch: 12 },  // From Stock
-            { wch: 12 },  // To Stock
-            { wch: 12 },  // From Annual
-            { wch: 12 },  // To Annual
-            { wch: 22 },  // Suggested Transfer Qty
+            { wch: 14 },  // From Stock
+            { wch: 14 },  // To Stock
+            { wch: 14 },  // From Annual
+            { wch: 14 },  // To Annual
+            { wch: 24 },  // Suggested Transfer Qty
             { wch: 12 },  // Priority
-            { wch: 12 },  // Price
-            { wch: 14 },  // Saving
-            { wch: 36 },  // Recommendation
-            { wch: 70 }   // Reason
+            { wch: 14 },  // Price
+            { wch: 16 },  // Saving
+            { wch: 40 },  // Recommendation
+            { wch: 72 }   // Reason
         ];
 
+        /* Slightly taller header row */
+        transfersSheet["!rows"] = [
+            { hpt: 24 }
+        ];
+
+        /* ---------------------------------------------------------
+           FILTERS
+        --------------------------------------------------------- */
         if (transfersSheet["!ref"]) {
             transfersSheet["!autofilter"] = {
                 ref: transfersSheet["!ref"]
             };
         }
 
-        /* Numeric display formats for Price and Saving */
+        /* ---------------------------------------------------------
+           FORCE NUMERIC COLUMNS TO STAY NUMERIC
+           This avoids manual formulas after copy/paste to Google Sheets.
+
+           F  From Stock
+           G  To Stock
+           H  From Annual
+           I  To Annual
+           J  Suggested Transfer Qty
+           L  Price
+           M  Saving
+        --------------------------------------------------------- */
         for (
             let rowNumber = 2;
             rowNumber <= possibleTransfers.length + 1;
             rowNumber++
         ) {
-            const priceCell = transfersSheet[`L${rowNumber}`];
-            const savingCell = transfersSheet[`M${rowNumber}`];
 
-            if (priceCell && typeof priceCell.v === "number") {
-                priceCell.z = '$0.####';
-            }
+            const numericCells = [
+                [`F${rowNumber}`, "0.00"],
+                [`G${rowNumber}`, "0.00"],
+                [`H${rowNumber}`, "0.00"],
+                [`I${rowNumber}`, "0.00"],
+                [`J${rowNumber}`, "0.00"],
+                [`L${rowNumber}`, "0.0000"],
+                [`M${rowNumber}`, "0.00"]
+            ];
 
-            if (savingCell && typeof savingCell.v === "number") {
-                savingCell.z = '$#,##0.00';
-            }
+            numericCells.forEach(
+                ([cellAddress, numberFormat]) => {
+
+                    const cell =
+                        transfersSheet[cellAddress];
+
+                    if (
+                        cell
+                        &&
+                        cell.v !== ""
+                        &&
+                        cell.v !== null
+                        &&
+                        cell.v !== undefined
+                    ) {
+
+                        const numericValue =
+                            Number(cell.v);
+
+                        if (
+                            Number.isFinite(numericValue)
+                        ) {
+
+                            cell.t = "n";
+                            cell.v = numericValue;
+                            cell.z = numberFormat;
+
+                        }
+                    }
+
+                }
+            );
+
         }
 
+        /* ---------------------------------------------------------
+           CREATE WORKBOOK WITH ONE SHEET ONLY
+        --------------------------------------------------------- */
         const workbook =
             XLSX.utils.book_new();
 
-        /* Put the Looker-ready sheet FIRST so the file opens there */
         XLSX.utils.book_append_sheet(
             workbook,
             transfersSheet,
             "Possible Transfers"
-        );
-
-        /* Keep these as backup/technical tabs */
-        XLSX.utils.book_append_sheet(
-            workbook,
-            cleanedSheet,
-            "Cleaned Pipeline"
-        );
-
-        XLSX.utils.book_append_sheet(
-            workbook,
-            summarySheet,
-            "Summary"
         );
 
         XLSX.writeFile(
